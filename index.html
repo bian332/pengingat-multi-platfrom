@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Smart Reminder App</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      max-width: 500px;
+      margin: 0 auto;
+      padding: 1rem;
+      background: #f0f0f0;
+    }
+    h1 {
+      text-align: center;
+    }
+    form {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      margin-bottom: 1rem;
+    }
+    input, button {
+      padding: 0.5rem;
+      font-size: 1rem;
+    }
+    ul {
+      list-style: none;
+      padding: 0;
+    }
+    li {
+      background: #fff;
+      padding: 0.75rem;
+      margin-bottom: 0.5rem;
+      border-radius: 5px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .delete-btn {
+      background: #e74c3c;
+      color: white;
+      border: none;
+      padding: 0.3rem 0.6rem;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <h1>Smart Reminder</h1>
+
+  <form id="reminder-form">
+    <input type="text" id="reminder-text" placeholder="Tulis pengingat..." required>
+    <input type="datetime-local" id="reminder-time" required>
+    <button type="submit">Tambah Pengingat</button>
+  </form>
+
+  <ul id="reminder-list"></ul>
+
+  <script>
+    const form = document.getElementById('reminder-form');
+    const reminderList = document.getElementById('reminder-list');
+
+    let reminders = JSON.parse(localStorage.getItem('reminders')) || [];
+
+    function saveReminders() {
+      localStorage.setItem('reminders', JSON.stringify(reminders));
+    }
+
+    function renderReminders() {
+      reminderList.innerHTML = '';
+      reminders.forEach((reminder, index) => {
+        const li = document.createElement('li');
+        li.innerHTML = `
+          <span>${reminder.text} – ${new Date(reminder.time).toLocaleString()}</span>
+          <button class="delete-btn" onclick="deleteReminder(${index})">Hapus</button>
+        `;
+        reminderList.appendChild(li);
+      });
+    }
+
+    function deleteReminder(index) {
+      reminders.splice(index, 1);
+      saveReminders();
+      renderReminders();
+    }
+
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const text = document.getElementById('reminder-text').value;
+      const time = document.getElementById('reminder-time').value;
+
+      if (!text || !time) return;
+
+      reminders.push({ text, time });
+      saveReminders();
+      renderReminders();
+      form.reset();
+    });
+
+    renderReminders();
+  </script>
+</body>
+</html>
