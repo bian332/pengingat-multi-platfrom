@@ -21,9 +21,14 @@
       gap: 0.5rem;
       margin-bottom: 1rem;
     }
-    input, button {
+    input, button, label {
       padding: 0.5rem;
       font-size: 1rem;
+    }
+    label {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
     }
     ul {
       list-style: none;
@@ -37,6 +42,7 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
+      flex-wrap: wrap;
     }
     .delete-btn {
       background: #e74c3c;
@@ -44,6 +50,15 @@
       border: none;
       padding: 0.3rem 0.6rem;
       border-radius: 4px;
+      cursor: pointer;
+    }
+    .snooze-btn {
+      background: #3498db;
+      color: white;
+      border: none;
+      padding: 0.3rem 0.6rem;
+      border-radius: 4px;
+      margin-left: 0.5rem;
       cursor: pointer;
     }
   </style>
@@ -54,14 +69,20 @@
   <form id="reminder-form">
     <input type="text" id="reminder-text" placeholder="Tulis pengingat..." required>
     <input type="datetime-local" id="reminder-time" required>
+    <label>
+      <input type="checkbox" id="repeat-daily"> Ulangi setiap hari
+    </label>
     <button type="submit">Tambah Pengingat</button>
   </form>
 
   <ul id="reminder-list"></ul>
-    <audio id="alarm-sound" src="Panic Alarm Sound Effect.mp3" preload="auto"></audio>
+
+  <audio id="alarm-sound" src="Panic Alarm Sound Effect.mp3" preload="auto"></audio>
+
   <script>
     const form = document.getElementById('reminder-form');
     const reminderList = document.getElementById('reminder-list');
+    const alarmSound = document.getElementById('alarm-sound');
 
     let reminders = JSON.parse(localStorage.getItem('reminders')) || [];
 
@@ -74,8 +95,10 @@
       reminders.forEach((reminder, index) => {
         const li = document.createElement('li');
         li.innerHTML = `
-          <span>${reminder.text} – ${new Date(reminder.time).toLocaleString()}</span>
-          <button class="delete-btn" onclick="deleteReminder(${index})">Hapus</button>
+          <span>${reminder.text} – ${new Date(reminder.time).toLocaleString()}${reminder.repeat ? ' 🔁' : ''}</span>
+          <div>
+            <button class="delete-btn" onclick="deleteReminder(${index})">Hapus</button>
+          </div>
         `;
         reminderList.appendChild(li);
       });
@@ -91,15 +114,66 @@
       e.preventDefault();
       const text = document.getElementById('reminder-text').value;
       const time = document.getElementById('reminder-time').value;
+      const repeat = document.getElementById('repeat-daily').checked;
 
       if (!text || !time) return;
 
-      reminders.push({ text, time });
+      reminders.push({ text, time, repeat, triggered: false });
       saveReminders();
       renderReminders();
       form.reset();
     });
 
+    function requestNotificationPermission() {
+      if ('Notification' in window && Notification.permission !== 'granted') {
+        Notification.requestPermission();
+      }
+    }
+
+    function showNotification(message) {
+      if ('Notification' in window && Notification.permission === 'granted') {
+        new Notification('Pengingat', { body: message });
+      }
+    }
+
+    function checkReminders() {
+      const now = Date.now();
+
+      reminders.forEach((reminder, index) => {
+        const reminderTime = new Date(reminder.time).getTime();
+
+        if (!reminder.triggered && reminderTime <= now) {
+          reminder.triggered = true;
+
+          // Mainkan alarm
+          alarmSound.play().catch(err => console.warn('Audio error:', err));
+
+          // Notifikasi & alert
+          showNotification(reminder.text);
+          const snooze = confirm(`🔔 Pengingat: ${reminder.text}\n\nKlik "OK" untuk tunda 5 menit.\nKlik "Cancel" untuk lanjut.`);
+
+          if (snooze) {
+            const snoozeTime = new Date(now + 5 * 60000).toISOString();
+            reminder.time = snoozeTime;
+            reminder.triggered = false;
+          } else if (reminder.repeat) {
+            // Tambahkan 1 hari (24 jam)
+            const nextDay = new Date(reminderTime + 24 * 60 * 60 * 1000);
+            reminder.time = nextDay.toISOString();
+            reminder.triggered = false;
+          }
+
+          saveReminders();
+          renderReminders();
+        }
+      });
+    }
+
+    // Interval cek tiap detik
+    setInterval(checkReminders, 1000);
+
+    // Inisialisasi
+    requestNotificationPermission();
     renderReminders();
   </script>
 </body>
